@@ -1,6 +1,7 @@
 #' Active librairies
 #' @description Importe si absente puis active les librairies.
 #'
+#' @param lib.name = nom de la librairie
 #' @author Bruciamacchie Max
 #'
 #' @export
