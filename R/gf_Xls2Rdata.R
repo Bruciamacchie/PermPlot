@@ -6,7 +6,7 @@
 #' @author Bruciamacchie Max, Demets Valentin
 #'
 #' @param repGF = répertoire de travail
-#' @param ListFile = classeur(s) excel(s) contenant les données d'inventaire
+#' @param fich = classeur(s) excel(s) contenant les données d'inventaire
 #'
 #' @import tcltk
 #' @import tools
