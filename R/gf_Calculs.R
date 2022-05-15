@@ -37,10 +37,10 @@ gf_Calculs <- function(TauxR=0.03) {
     left_join(Quals, by=c("Qual"="Nom")) %>%
     filter(Diam>=7.5) %>%
     left_join(Prix, by=c("Essence","Classe","Reg1"="Qual")) %>%
-    arrange(NumForet,Cycle,NumPlac,Azimut)
-
-  pos <- which(is.na(arbres$Qual))
-  if (length(pos) > 0) arbres$Qual[pos] <- "C"
+    arrange(NumForet,Cycle,NumPlac,Azimut) %>%
+    mutate(Qual = ifelse(is.na(Qual), "C", Qual)) %>%
+    mutate(DiamSup = Diam + 5,
+           ClasseSup = Classe + 5)
 
   ########################### Calcul du poids ###############################
   print("Calcul du poids")
@@ -65,63 +65,37 @@ gf_Calculs <- function(TauxR=0.03) {
   rm(pos)
 
   ########################### Donnees /ha ############################
-  arbres$Gha <- pi*arbres$Diam1^2/40000 * arbres$Nha
   # -------- Volume gestionnaire
-  arbres$DiamSup <- arbres$Diam + 5
-  arbres$ClasseSup <- arbres$Classe + 5
+  print("Calcul des volumes")
 
-  print("Calcul du volume gestionnaire")
-  arbres$Vha     <- NA
-  arbres$VhaSup  <- NA
-  pos <- which(arbres$TypeTarif=="SchR")
-  if (length(pos) > 0) {
-    arbres$Vha[pos] <-  5/70000*(8+arbres$NumTarif[pos])*(arbres$Diam[pos]-5)*
-      (arbres$Diam[pos]-10)*arbres$Nha[pos]
-    arbres$VhaSup[pos] <- 5/70000*(8+arbres$NumTarif[pos])*(arbres$DiamSup[pos]-5)*
-      (arbres$DiamSup[pos]-10)*arbres$Nha[pos]}
-  pos <- which(arbres$TypeTarif=="SchI")
-  if (length(pos) > 0) {
-    arbres$Vha[pos] <-  5/80000*(8+arbres$NumTarif[pos])*(arbres$Diam[pos]-2.5)*
-      (arbres$Diam[pos]-7.5)*arbres$Nha[pos]
-    arbres$VhaSup[pos] <- 5/80000*(8+arbres$NumTarif[pos])*(arbres$DiamSup[pos]-2.5)*
-      (arbres$DiamSup[pos]-7.5)*arbres$Nha[pos]}
-  pos <- which(arbres$TypeTarif=="SchL")
-  if (length(pos) > 0) {
-    arbres$Vha[pos] <-  5/90000*(8+arbres$NumTarif[pos])*(arbres$Diam[pos]-5)*
-      arbres$Diam[pos]*arbres$Nha[pos]
-    arbres$VhaSup[pos] <- 5/90000*(8+arbres$NumTarif[pos])*(arbres$DiamSup[pos]-5)*
-      arbres$DiamSup[pos]*arbres$Nha[pos]}
-  pos <- which(arbres$TypeTarif=="SchTL")
-  if (length(pos) > 0) {
-    arbres$Vha[pos] <-  5/101250*(8+arbres$NumTarif[pos])*arbres$Diam[pos]^2*arbres$Nha[pos]
-    arbres$VhaSup[pos] <- 5/101250*(8+arbres$NumTarif[pos])*arbres$DiamSup[pos]^2*arbres$Nha[pos]}
-  arbres$Vha[which(arbres$Vha<0)]       <- 0
-  arbres$VhaSup[which(arbres$VhaSup<0)] <- 0
-  rm(pos)
+  arbres <- arbres %>%
+    mutate(Vha = case_when(TypeTarif=="SchR" ~ 5/70000*(8+NumTarif)*(Diam-5)*(Diam-10),
+                           TypeTarif=="SchI" ~ 5/80000*(8+NumTarif)*(Diam-2.5)*(Diam-7.5),
+                           TypeTarif=="SchL" ~ 5/90000*(8+NumTarif)*(Diam-5)*Diam,
+                           TypeTarif=="SchTL" ~ 5/101250*(8+NumTarif)*Diam^2)) %>%
+    mutate(Vha = Vha * Nha) %>%
+    mutate(Vha = ifelse(Vha < 0, 0, Vha)) %>%
 
-  # -------- Calcul du volume IFN
-  print("Calcul du volume géométrique bois fort tige")
-  arbres$VhaIFN <- NA
-  pos <- which(arbres$TypeTarifIFN=="SchR")
-  if (length(pos) > 0) {
-    arbres$VhaIFN[pos] <-  5/70000*(8+arbres$NumTarifIFN[pos])*(arbres$Diam[pos]-5)*
-      (arbres$Diam[pos]-10)*arbres$Nha[pos]}
-  pos <- which(arbres$TypeTarifIFN=="SchI")
-  if (length(pos) > 0) {
-    arbres$VhaIFN[pos] <-  5/80000*(8+arbres$NumTarifIFN[pos])*(arbres$Diam[pos]-2.5)*
-      (arbres$Diam[pos]-7.5)*arbres$Nha[pos]}
-  pos <- which(arbres$TypeTarifIFN=="SchL")
-  if (length(pos) > 0) {
-    arbres$VhaIFN[pos] <-  5/90000*(8+arbres$NumTarifIFN[pos])*(arbres$Diam[pos]-5)*
-      arbres$Diam[pos]*arbres$Nha[pos]}
-  pos <- which(arbres$TypeTarifIFN=="SchTL")
-  if (length(pos) > 0) {
-    arbres$VhaIFN[pos] <-  5/101250*(8+arbres$NumTarifIFN[pos])*arbres$Diam[pos]^2*arbres$Nha[pos]}
-  arbres$VhaIFN[which(arbres$VhaIFN<0)] <- 0
+    mutate(VhaSup = case_when(TypeTarif=="SchR" ~ 5/70000*(8+NumTarif)*(DiamSup-5)*(DiamSup-10),
+                              TypeTarif=="SchI" ~ 5/80000*(8+NumTarif)*(DiamSup-2.5)*(DiamSup-7.5),
+                              TypeTarif=="SchL" ~ 5/90000*(8+NumTarif)*(DiamSup-5)*DiamSup,
+                              TypeTarif=="SchTL" ~ 5/101250*(8+NumTarif)*DiamSup^2)) %>%
+    mutate(VhaSup = VhaSup * Nha) %>%
+    mutate(VhaSup = ifelse(VhaSup < 0, 0, VhaSup)) %>%
+    # -------- Calcul du volume IFN
+    mutate(VhaIFN = case_when(TypeTarifIFN=="SchR" ~ 5/70000*(8+NumTarifIFN)*(Diam-5)*(Diam-10),
+                              TypeTarifIFN=="SchI" ~ 5/80000*(8+NumTarifIFN)*(Diam-2.5)*(Diam-7.5),
+                              TypeTarifIFN=="SchL" ~ 5/90000*(8+NumTarifIFN)*(Diam-5)*Diam,
+                              TypeTarifIFN=="SchTL" ~ 5/101250*(8+NumTarifIFN)*Diam^2)) %>%
+    mutate(VhaIFN = VhaIFN * Nha) %>%
+    mutate(VhaIFN = ifelse(VhaIFN < 0, 0, VhaIFN))
 
-  # ------ Valeur consommation
-  print("Calcul de la valeur de consommation")
-  arbres$VcHa <- arbres$Vha*arbres$PU
+  arbres <- arbres %>%
+    mutate(Gha = pi*Diam1^2/40000 * Nha,
+           VcHa = Vha * PU,  # ------ Valeur consommation
+           TauxV = log(VhaSup/Vha)/5) %>%
+    select(Nha:TauxV)
+
 
   # ------ Taux
   arbres$TauxV <- 0
